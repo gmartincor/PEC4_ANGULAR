@@ -5,6 +5,7 @@ import { LocalStorageService } from 'src/app/Services/local-storage.service';
 import { HeaderComponent } from './header.component';
 import { BehaviorSubject } from 'rxjs';
 import { HeaderMenus } from 'src/app/Models/header-menus.dto';
+import { By } from '@angular/platform-browser';
 
 describe('HeaderComponent', () => {
   let component: HeaderComponent;
@@ -104,6 +105,55 @@ describe('HeaderComponent', () => {
       expect(localStorageService.remove).toHaveBeenCalledWith('user_id');
       expect(localStorageService.remove).toHaveBeenCalledWith('access_token');
       expect(spy).toHaveBeenCalledWith('home');
+    });
+  });
+
+  describe('menu visibility tests', () => {
+    it('should show non-authenticated menu items when not authenticated', () => {
+      // Ensure non-auth section is visible
+      mockHeaderMenusService.headerManagement.next({
+        showAuthSection: false,
+        showNoAuthSection: true
+      });
+      fixture.detectChanges();
+
+      // Get all buttons in the non-auth section
+      const buttons = fixture.debugElement.queryAll(By.css('div *ngIf="showNoAuthSection" button'));
+      const buttonTexts = fixture.nativeElement.querySelector('div:first-of-type').textContent;
+      
+      // Check for presence of non-auth menu items
+      expect(buttonTexts).toContain('Dashboard');
+      expect(buttonTexts).toContain('Home');
+      expect(buttonTexts).toContain('Login');
+      expect(buttonTexts).toContain('Register');
+      
+      // Verify auth section is not visible
+      const authSection = fixture.nativeElement.querySelector('div:last-of-type');
+      expect(authSection.offsetParent).toBeNull(); // Element is not visible in DOM
+    });
+
+    it('should show authenticated menu items when authenticated', () => {
+      // Set auth section to visible
+      mockHeaderMenusService.headerManagement.next({
+        showAuthSection: true,
+        showNoAuthSection: false
+      });
+      fixture.detectChanges();
+
+      // Get text content of the auth section
+      const buttonTexts = fixture.nativeElement.querySelector('div:last-of-type').textContent;
+      
+      // Check for presence of auth menu items
+      expect(buttonTexts).toContain('Dashboard');
+      expect(buttonTexts).toContain('Home');
+      expect(buttonTexts).toContain('Admin posts');
+      expect(buttonTexts).toContain('Admin categories');
+      expect(buttonTexts).toContain('Profile');
+      expect(buttonTexts).toContain('Logout');
+      
+      // Verify non-auth section is not visible
+      const nonAuthSection = fixture.nativeElement.querySelector('div:first-of-type');
+      expect(nonAuthSection.offsetParent).toBeNull(); // Element is not visible in DOM
     });
   });
 });
