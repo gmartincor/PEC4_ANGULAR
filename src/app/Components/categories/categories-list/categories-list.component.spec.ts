@@ -57,13 +57,6 @@ describe('CategoriesListComponent', () => {
   });
 
   beforeEach(() => {
-    fixture = TestBed.createComponent(CategoriesListComponent);
-    component = fixture.componentInstance;
-    categoryService = TestBed.inject(CategoryService);
-    localStorageService = TestBed.inject(LocalStorageService);
-    router = TestBed.inject(Router);
-    sharedService = TestBed.inject(SharedService);
-    
     // Reset spies before each test
     categoryServiceMock.getCategoriesByUserId.calls.reset();
     categoryServiceMock.deleteCategory.calls.reset();
@@ -71,39 +64,72 @@ describe('CategoriesListComponent', () => {
     routerMock.navigateByUrl.calls.reset();
     sharedServiceMock.errorLog.calls.reset();
     
-    fixture.detectChanges();
+    // By default, return the mock categories
+    categoryServiceMock.getCategoriesByUserId.and.returnValue(of(mockCategories));
+    
+    fixture = TestBed.createComponent(CategoriesListComponent);
+    component = fixture.componentInstance;
   });
 
   it('should create', () => {
+    fixture.detectChanges();
     expect(component).toBeTruthy();
   });
 
   describe('loadCategories', () => {
     it('should call getCategoriesByUserId and set categories correctly', () => {
-      // loadCategories is called in the constructor, so we need to check if it was called
+      // We need to call detectChanges to trigger ngOnInit
+      fixture.detectChanges();
+      
+      // Now we can expect the methods to have been called
       expect(localStorageServiceMock.get).toHaveBeenCalledWith('user_id');
       expect(categoryServiceMock.getCategoriesByUserId).toHaveBeenCalledWith(userId);
       expect(component.categories).toEqual(mockCategories);
     });
 
     it('should handle error when getCategoriesByUserId fails', () => {
-      const error = { error: 'Test error' };
-      categoryServiceMock.getCategoriesByUserId.and.returnValue(throwError(error));
+      // Recreate the TestBed with the error configuration
+      TestBed.resetTestingModule();
+      TestBed.configureTestingModule({
+        imports: [HttpClientTestingModule],
+        declarations: [CategoriesListComponent],
+        providers: [
+          { 
+            provide: CategoryService, 
+            useValue: {
+              getCategoriesByUserId: jasmine.createSpy('getCategoriesByUserId').and.returnValue(
+                throwError({ error: 'Test error' })
+              )
+            } 
+          },
+          { 
+            provide: LocalStorageService, 
+            useValue: { get: jasmine.createSpy('get').and.returnValue(userId) } 
+          },
+          { provide: Router, useValue: routerMock },
+          { 
+            provide: SharedService, 
+            useValue: { errorLog: jasmine.createSpy('errorLog') } 
+          }
+        ]
+      }).compileComponents();
+
+      // Get fresh instances with the new configuration
+      fixture = TestBed.createComponent(CategoriesListComponent);
+      component = fixture.componentInstance;
+      const freshSharedService = TestBed.inject(SharedService);
       
-      // We need to create a new instance to trigger the constructor again
-      component = new CategoriesListComponent(
-        categoryService as any,
-        router as any,
-        localStorageService as any,
-        sharedService as any
-      );
+      // Activate the component
+      fixture.detectChanges();
       
-      expect(sharedServiceMock.errorLog).toHaveBeenCalled();
+      // Verify the error is logged
+      expect(freshSharedService.errorLog).toHaveBeenCalled();
     });
   });
 
   describe('createCategory', () => {
     it('should navigate to category creation page', () => {
+      fixture.detectChanges();
       component.createCategory();
       expect(routerMock.navigateByUrl).toHaveBeenCalledWith('/user/category/');
     });
@@ -111,6 +137,7 @@ describe('CategoriesListComponent', () => {
 
   describe('updateCategory', () => {
     it('should navigate to category update page with correct categoryId', () => {
+      fixture.detectChanges();
       component.updateCategory(categoryId);
       expect(routerMock.navigateByUrl).toHaveBeenCalledWith('/user/category/' + categoryId);
     });

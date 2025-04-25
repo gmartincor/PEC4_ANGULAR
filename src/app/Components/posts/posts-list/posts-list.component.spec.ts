@@ -82,13 +82,6 @@ describe('PostsListComponent', () => {
   });
 
   beforeEach(() => {
-    fixture = TestBed.createComponent(PostsListComponent);
-    component = fixture.componentInstance;
-    postService = TestBed.inject(PostService);
-    localStorageService = TestBed.inject(LocalStorageService);
-    router = TestBed.inject(Router);
-    sharedService = TestBed.inject(SharedService);
-    
     // Reset spies before each test
     postServiceMock.getPostsByUserId.calls.reset();
     postServiceMock.deletePost.calls.reset();
@@ -96,39 +89,72 @@ describe('PostsListComponent', () => {
     routerMock.navigateByUrl.calls.reset();
     sharedServiceMock.errorLog.calls.reset();
     
-    fixture.detectChanges();
+    // By default, return the mock posts
+    postServiceMock.getPostsByUserId.and.returnValue(of(mockPosts));
+    
+    fixture = TestBed.createComponent(PostsListComponent);
+    component = fixture.componentInstance;
   });
 
   it('should create', () => {
+    fixture.detectChanges();
     expect(component).toBeTruthy();
   });
 
   describe('loadPosts', () => {
     it('should call getPostsByUserId and set posts correctly', () => {
-      // loadPosts is called in the constructor, so we need to check if it was called
+      // We need to call detectChanges to trigger ngOnInit
+      fixture.detectChanges();
+      
+      // Now we can expect the methods to have been called
       expect(localStorageServiceMock.get).toHaveBeenCalledWith('user_id');
       expect(postServiceMock.getPostsByUserId).toHaveBeenCalledWith(userId);
       expect(component.posts).toEqual(mockPosts);
     });
 
     it('should handle error when getPostsByUserId fails', () => {
-      const error = { error: 'Test error' };
-      postServiceMock.getPostsByUserId.and.returnValue(throwError(error));
+      // Recreate the TestBed with the error configuration
+      TestBed.resetTestingModule();
+      TestBed.configureTestingModule({
+        imports: [HttpClientTestingModule],
+        declarations: [PostsListComponent],
+        providers: [
+          { 
+            provide: PostService, 
+            useValue: {
+              getPostsByUserId: jasmine.createSpy('getPostsByUserId').and.returnValue(
+                throwError({ error: 'Test error' })
+              )
+            } 
+          },
+          { 
+            provide: LocalStorageService, 
+            useValue: { get: jasmine.createSpy('get').and.returnValue(userId) } 
+          },
+          { provide: Router, useValue: routerMock },
+          { 
+            provide: SharedService, 
+            useValue: { errorLog: jasmine.createSpy('errorLog') } 
+          }
+        ]
+      }).compileComponents();
+
+      // Get fresh instances with the new configuration
+      fixture = TestBed.createComponent(PostsListComponent);
+      component = fixture.componentInstance;
+      const freshSharedService = TestBed.inject(SharedService);
       
-      // We need to create a new instance to trigger the constructor again
-      component = new PostsListComponent(
-        postService as any,
-        router as any,
-        localStorageService as any,
-        sharedService as any
-      );
+      // Activate the component
+      fixture.detectChanges();
       
-      expect(sharedServiceMock.errorLog).toHaveBeenCalled();
+      // Verify the error is logged
+      expect(freshSharedService.errorLog).toHaveBeenCalled();
     });
   });
 
   describe('createPost', () => {
     it('should navigate to post creation page', () => {
+      fixture.detectChanges();
       component.createPost();
       expect(routerMock.navigateByUrl).toHaveBeenCalledWith('/user/post/');
     });
@@ -136,6 +162,7 @@ describe('PostsListComponent', () => {
 
   describe('updatePost', () => {
     it('should navigate to post update page with correct postId', () => {
+      fixture.detectChanges();
       component.updatePost(postId);
       expect(routerMock.navigateByUrl).toHaveBeenCalledWith('/user/post/' + postId);
     });
