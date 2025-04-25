@@ -33,32 +33,8 @@ export class HeaderComponent implements OnInit {
     );
   }
 
-  dashboard(): void {
-    this.router.navigateByUrl('dashboard');
-  }
-
-  home(): void {
-    this.router.navigateByUrl('home');
-  }
-
-  login(): void {
-    this.router.navigateByUrl('login');
-  }
-
-  register(): void {
-    this.router.navigateByUrl('register');
-  }
-
-  adminPosts(): void {
-    this.router.navigateByUrl('posts');
-  }
-
-  adminCategories(): void {
-    this.router.navigateByUrl('categories');
-  }
-
-  profile(): void {
-    this.router.navigateByUrl('profile');
+  navigationTo(route: string): void {
+    this.router.navigateByUrl(route);
   }
 
   logout(): void {
